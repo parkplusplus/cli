@@ -1,11 +1,10 @@
-package main
+package sb
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
@@ -13,9 +12,6 @@ import (
 )
 
 type receiveArgs struct {
-	receiveModeStr string
-	receiveMode    azservicebus.ReceiveMode
-
 	oneLine bool
 	timeout time.Duration
 	count   int
@@ -33,12 +29,10 @@ type mode string
 
 const (
 	receiveAndDelete = "ReceiveAndDelete"
-	peekLock         = "PeekLock"
 )
 
 var modes = []string{
 	receiveAndDelete,
-	peekLock,
 }
 
 func newReceiveCommand() *cobra.Command {
@@ -53,21 +47,9 @@ func newReceiveCommand() *cobra.Command {
 	}
 
 	cmd.Args = cobra.RangeArgs(1, 2)
-	cmd.Flags().StringVarP(&receiveArgs.receiveModeStr, "mode", "m", "ReceiveAndDelete", "Mode for receiving.\n\tReceiveAndDelete to delete messages as they are received \n\tPeekLock to receive messages that can be settled later using sb settle")
 	cmd.Flags().BoolVar(&receiveArgs.oneLine, "oneline", true, "Print each message as a single line.")
 	cmd.Flags().DurationVarP(&receiveArgs.timeout, "timeout", "t", time.Minute, "Maximum time to wait for a single message to arrive.")
 	cmd.Flags().IntVarP(&receiveArgs.count, "count", "c", 1, "Maximum number of messages to wait for.")
-
-	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
-		mode, err := parseReceiveMode(receiveArgs.receiveModeStr)
-
-		if err != nil {
-			return err
-		}
-
-		receiveArgs.receiveMode = mode
-		return nil
-	}
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		if len(args) == 1 {
@@ -82,20 +64,7 @@ func newReceiveCommand() *cobra.Command {
 	return cmd
 }
 
-func parseReceiveMode(mode string) (azservicebus.ReceiveMode, error) {
-	if strings.EqualFold(mode, receiveAndDelete) {
-		return azservicebus.ReceiveModeReceiveAndDelete, nil
-	}
-
-	if strings.EqualFold(mode, peekLock) {
-		return azservicebus.ReceiveModePeekLock, nil
-	}
-
-	return 0, fmt.Errorf("%s is an unknown mode (should be one of: %s)", mode, strings.Join(modes, ","))
-}
-
 func receiveCommand(args *receiveArgs) error {
-
 	client, err := args.auth.NewClient()
 
 	if err != nil {
@@ -108,11 +77,11 @@ func receiveCommand(args *receiveArgs) error {
 
 	if args.queue != "" {
 		receiver, err = client.NewReceiverForQueue(args.queue, &azservicebus.ReceiverOptions{
-			ReceiveMode: args.receiveMode,
+			ReceiveMode: azservicebus.ReceiveModeReceiveAndDelete,
 		})
 	} else {
 		receiver, err = client.NewReceiverForSubscription(args.topic, args.subscription, &azservicebus.ReceiverOptions{
-			ReceiveMode: args.receiveMode,
+			ReceiveMode: azservicebus.ReceiveModeReceiveAndDelete,
 		})
 	}
 

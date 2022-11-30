@@ -1,4 +1,4 @@
-package main
+package sb
 
 import (
 	"context"
@@ -93,7 +93,7 @@ func sendCommand(args *sendArgs) error {
 
 	err = sender.SendMessage(ctx, &azservicebus.Message{
 		Body: bytes,
-	})
+	}, nil)
 
 	if errors.Is(err, context.DeadlineExceeded) {
 		return fmt.Errorf("timed out sending message (timeout duration was %s): %w", args.timeout, err)

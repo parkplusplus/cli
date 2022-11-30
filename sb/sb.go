@@ -1,13 +1,10 @@
-package main
+package sb
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/spf13/cobra"
 )
 
-func main() {
+func NewCommand() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use: "sb",
 	}
@@ -15,8 +12,5 @@ func main() {
 	rootCmd.AddCommand(newSendCommand())
 	rootCmd.AddCommand(newReceiveCommand())
 
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Printf("ERROR: %s", err.Error())
-		os.Exit(1)
-	}
+	return rootCmd
 }
