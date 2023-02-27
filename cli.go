@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/parkplusplus/cli/mq"
-	"github.com/parkplusplus/cli/sb"
+	"github.com/parkplusplus/cli/internal/mq"
+	"github.com/parkplusplus/cli/internal/sb"
 	"github.com/spf13/cobra"
 )
 
