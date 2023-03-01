@@ -8,93 +8,87 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
+	"github.com/parkplusplus/cli/internal/auth"
 	"github.com/spf13/cobra"
 )
 
-type receiveArgs struct {
+type receiveCmd struct {
 	oneLine bool
 	timeout time.Duration
 	count   int
-	auth    *Auth
+	auth    *auth.Namespace
 
 	queue string
 	// or
 	topic        string
 	subscription string
 
-	cmd *cobra.Command
+	*cobra.Command
 }
 
-type mode string
-
-const (
-	receiveAndDelete = "ReceiveAndDelete"
-)
-
-var modes = []string{
-	receiveAndDelete,
-}
-
-func newReceiveCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "receive [queue|topic subscription] [flags]",
-		Short: "Receive messages from a queue or a topic and subscription.",
+func newReceiveCmd() *cobra.Command {
+	rc := &receiveCmd{
+		Command: &cobra.Command{
+			Use:   "receive [queue|topic subscription] [flags]",
+			Short: "Receive messages from a queue or a topic and subscription.",
+		},
 	}
 
-	receiveArgs := &receiveArgs{
-		auth: AddAuth(cmd.Flags()),
-		cmd:  cmd,
-	}
+	rc.auth = auth.NewNamespace(rc.Command.Flags(), defaultConnectionStringVar)
 
-	cmd.Args = cobra.RangeArgs(1, 2)
-	cmd.Flags().BoolVar(&receiveArgs.oneLine, "oneline", true, "Print each message as a single line.")
-	cmd.Flags().DurationVarP(&receiveArgs.timeout, "timeout", "t", time.Minute, "Maximum time to wait for a single message to arrive.")
-	cmd.Flags().IntVarP(&receiveArgs.count, "count", "c", 1, "Maximum number of messages to wait for.")
+	rc.Args = cobra.RangeArgs(1, 2)
+	rc.Flags().BoolVar(&rc.oneLine, "oneline", true, "Print each message as a single line.")
+	rc.Flags().DurationVarP(&rc.timeout, "timeout", "t", time.Minute, "Maximum time to wait for a single message to arrive.")
+	rc.Flags().IntVarP(&rc.count, "count", "c", 1, "Maximum number of messages to wait for.")
 
-	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+	rc.RunE = func(cmd *cobra.Command, args []string) error {
 		if len(args) == 1 {
-			receiveArgs.queue = args[0]
+			rc.queue = args[0]
 		} else if len(args) == 2 {
-			receiveArgs.topic, receiveArgs.subscription = args[0], args[1]
+			rc.topic, rc.subscription = args[0], args[1]
 		}
 
-		return receiveCommand(receiveArgs)
+		return rc.run(context.Background())
 	}
 
-	return cmd
+	return rc.Command
 }
 
-func receiveCommand(args *receiveArgs) error {
-	client, err := args.auth.NewClient()
+func (cmd *receiveCmd) run(ctx context.Context) error {
+	client, err := newClient(cmd.auth)
 
 	if err != nil {
 		return fmt.Errorf("failed to create a Service Bus client: %w", err)
 	}
 
-	defer client.Close(context.Background())
+	defer client.Close(ctx)
 
 	var receiver *azservicebus.Receiver
 
-	if args.queue != "" {
-		receiver, err = client.NewReceiverForQueue(args.queue, &azservicebus.ReceiverOptions{
+	if cmd.queue != "" {
+		receiver, err = client.NewReceiverForQueue(cmd.queue, &azservicebus.ReceiverOptions{
 			ReceiveMode: azservicebus.ReceiveModeReceiveAndDelete,
 		})
 	} else {
-		receiver, err = client.NewReceiverForSubscription(args.topic, args.subscription, &azservicebus.ReceiverOptions{
+		receiver, err = client.NewReceiverForSubscription(cmd.topic, cmd.subscription, &azservicebus.ReceiverOptions{
 			ReceiveMode: azservicebus.ReceiveModeReceiveAndDelete,
 		})
 	}
 
+	if err != nil {
+		return err
+	}
+
 	defer receiver.Close(context.Background())
 
-	ctx, cancel := context.WithTimeout(context.Background(), args.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), cmd.timeout)
 	defer cancel()
 
-	messages, err := receiver.ReceiveMessages(ctx, args.count, nil)
+	messages, err := receiver.ReceiveMessages(ctx, cmd.count, nil)
 
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return fmt.Errorf("no messages arrived within %s", args.timeout)
+			return fmt.Errorf("no messages arrived within %s", cmd.timeout)
 		}
 
 		return fmt.Errorf("failed receiving messages: %w", err)
@@ -104,10 +98,12 @@ func receiveCommand(args *receiveArgs) error {
 		var bytes []byte
 		var err error
 
-		if args.oneLine {
-			bytes, err = json.Marshal(m)
+		newM := newJSONReceivedMessage(m)
+
+		if cmd.oneLine {
+			bytes, err = json.Marshal(newM)
 		} else {
-			bytes, err = json.MarshalIndent(m, "  ", "  ")
+			bytes, err = json.MarshalIndent(newM, "  ", "  ")
 		}
 
 		if err != nil {

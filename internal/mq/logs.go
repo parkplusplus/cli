@@ -16,7 +16,8 @@ func NewLogCommand() *cobra.Command {
 	var isoTimespan string
 
 	cmd := &cobra.Command{
-		Use: "logs",
+		Use:   "logs",
+		Short: "Tools for querying Azure Monitor logs",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dac, err := azidentity.NewDefaultAzureCredential(nil)
 

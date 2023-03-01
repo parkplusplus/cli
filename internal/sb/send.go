@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
+	"github.com/parkplusplus/cli/internal/auth"
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +18,7 @@ type sendArgs struct {
 	queueOrTopic string
 	isBody       bool
 	timeout      time.Duration
-	auth         *Auth
+	auth         *auth.Namespace
 	cmd          *cobra.Command
 }
 
@@ -28,7 +29,7 @@ func newSendCommand() *cobra.Command {
 	}
 
 	sendArgs := &sendArgs{
-		auth: AddAuth(cmd.PersistentFlags()),
+		auth: auth.NewNamespace(cmd.PersistentFlags(), defaultConnectionStringVar),
 		cmd:  cmd,
 	}
 
@@ -50,7 +51,7 @@ func sendCommand(args *sendArgs) error {
 		return fmt.Errorf("you need to specify a queue or topic to send the message to")
 	}
 
-	client, err := args.auth.NewClient()
+	client, err := newClient(args.auth)
 
 	if err != nil {
 		return fmt.Errorf("failed to create a Service Bus client: %w", err)
@@ -73,7 +74,7 @@ func sendCommand(args *sendArgs) error {
 
 	var sendableMessage *azservicebus.Message
 
-	if *&args.isBody {
+	if args.isBody {
 		// assume the payload is just what we read from stdin
 		sendableMessage = &azservicebus.Message{
 			Body: bytes,

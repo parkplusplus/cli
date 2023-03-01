@@ -19,7 +19,8 @@ func NewMetricCommand() *cobra.Command {
 	var isoTimespan string
 
 	cmd := &cobra.Command{
-		Use: "metrics",
+		Use:   "metrics",
+		Short: "Tools for working with Azure resource metrics",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dac, err := azidentity.NewDefaultAzureCredential(nil)
 
