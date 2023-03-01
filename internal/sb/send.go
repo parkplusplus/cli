@@ -38,6 +38,10 @@ func newSendCommand() *cobra.Command {
 	cmd.PersistentFlags().DurationVar(&sendArgs.timeout, "timeout", time.Minute, "Time to wait for a send to complete.")
 
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		if err := sendArgs.auth.Apply(); err != nil {
+			return err
+		}
+
 		sendArgs.queueOrTopic = args[0]
 		return sendCommand(sendArgs)
 	}

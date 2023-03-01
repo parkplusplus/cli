@@ -53,7 +53,7 @@ func (ns *Namespace) Apply() error {
 	connectionString := os.Getenv(ns.opts.csEnvVar)
 
 	if connectionString == "" {
-		return fmt.Errorf("No connection string in environment variable %q", ns.opts.csEnvVar)
+		return fmt.Errorf("no connection string in environment variable %q", ns.opts.csEnvVar)
 	}
 
 	ns.ConnectionString = connectionString

@@ -42,6 +42,10 @@ func newReceiveCmd() *cobra.Command {
 	rc.Flags().IntVarP(&rc.count, "count", "c", 1, "Maximum number of messages to wait for.")
 
 	rc.RunE = func(cmd *cobra.Command, args []string) error {
+		if err := rc.auth.Apply(); err != nil {
+			return err
+		}
+
 		if len(args) == 1 {
 			rc.queue = args[0]
 		} else if len(args) == 2 {
